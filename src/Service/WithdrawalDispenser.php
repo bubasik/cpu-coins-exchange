@@ -47,17 +47,21 @@ final class WithdrawalDispenser
             try {
                 $adapter = AdapterRegistry::get($swap['to_coin']);
                 $feeRate = $this->getFeeRate($adapter);
+                echo "[swap #{$swap['id']}] Building payout tx: {$swap['to_amount_sat']} sats to {$swap['payout_address']} (fee=$feeRate sat/vB)\n";
                 $hex = $adapter->buildPayoutTx(
                     $swap['payout_address'],
                     (int)$swap['to_amount_sat'],
                     $feeRate
                 );
+                echo "[swap #{$swap['id']}] Tx built (" . strlen($hex) . " hex chars), decoding...\n";
 
                 // Sanity check: decode
                 $decoded = $adapter->api()->decodeRaw($hex);
+                echo "[swap #{$swap['id']}] Decoded OK, broadcasting...\n";
 
                 // Broadcast
                 $txid = $adapter->broadcast($hex);
+                echo "[swap #{$swap['id']}] Broadcast OK, txid=$txid\n";
 
                 $pdo->prepare('
                     UPDATE swap_orders

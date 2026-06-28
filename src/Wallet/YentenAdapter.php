@@ -84,8 +84,24 @@ final class YentenAdapter implements CoinAdapter
     private function findDerivIndexForScript(string $scriptHex): ?int
     {
         $xpub = $this->xpub();
-        // Limit search to 100 addresses max
-        for ($i = 0; $i < 100; $i++) {
+        if (empty($xpub)) return null;
+
+        // Check hot_wallet_address first
+        try {
+            $hotAddr = $this->hotWalletAddress();
+            if (!empty($hotAddr)) {
+                $creator = new \BitWasp\Bitcoin\Address\AddressCreator();
+                $addrObj = $creator->fromString($hotAddr, YentenApi::network());
+                if (strtolower($addrObj->getScriptPubKey()->getHex()) === strtolower($scriptHex)) {
+                    return 0;
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        // Search up to 1000 indices
+        for ($i = 0; $i < 1000; $i++) {
             try {
                 $addr = $this->wallet->deriveAddressFromXpub($xpub, $i);
                 // Compute scriptPubKey for this address

@@ -108,9 +108,12 @@ final class HdWallet
         $requiredFee = (int)ceil($estimatedSize * $feeRateSatPerB);
         $target = $sendAmountSat + $requiredFee;
 
+        error_log("buildAndSignTx: " . count($utxos) . " UTXOs available, target=$target (send=$sendAmountSat + fee=$requiredFee)");
+
         foreach ($utxos as $u) {
             $selected[] = $u;
             $totalIn += (int)$u['value'];
+            error_log("  UTXO txid={$u['txid']} vout={$u['index']} value={$u['value']} deriv_index=" . ($u['deriv_index'] ?? 'null'));
             if ($totalIn >= $target) break;
         }
         if ($totalIn < $target) {
@@ -120,6 +123,7 @@ final class HdWallet
             ));
         }
         $changeAmount = $totalIn - $sendAmountSat - $requiredFee;
+        error_log("buildAndSignTx: totalIn=$totalIn, changeAmount=$changeAmount");
 
         // Build unsigned transaction
         $txBuilder = TransactionFactory::build();
