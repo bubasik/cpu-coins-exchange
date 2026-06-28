@@ -3,15 +3,18 @@ declare(strict_types=1);
 
 namespace App\Api;
 
+use App\Core\Redis;
+
 /**
- * Base HTTP client for sugarchain-project/api-server (used by both Yenten and Sugarchain).
+ * Base HTTP client for sugarchain-project/api-server (Yenten, Sugarchain, Adventurecoin).
+ *
  * Endpoints (GET unless noted):
  *   /info                          - chain info {blocks, difficulty, supply, ...}
  *   /height/{height}               - block by height
  *   /block/{hash}                  - block by hash
  *   /transaction/{txid}            - tx detail with hex
  *   /balance/{address}             - {balance, received} in satoshis
- *   /unspent/{address}             - array of UTXOs [{txid, index, script, value, height}]
+ *   /unspent/{address}             - array of UTXOs
  *   /history/{address}             - {tx: [...txids], txcount}
  *   /mempool/{address}             - mempool txs for address
  *   /mempool                       - all mempool txs
@@ -19,14 +22,36 @@ namespace App\Api;
  *   /supply                        - {supply, height, halvings}
  *   /decode/{raw}                  - decoded raw tx
  *   POST /broadcast (form: raw=hex) - broadcast signed tx, returns txid
+ *
+ * Caching (anti-rate-limit):
+ *   - /info, /fee, /supply           → 60s (network-wide data, changes slowly)
+ *   - /balance, /unspent, /history   → 15s (per-address, polled by workers)
+ *   - /transaction                   → 30s (per-tx, polled after deposits)
+ *   - /decode                        → no cache (debug only)
+ *   - /broadcast                     → no cache (write op)
+ *
+ * Throttle: 2 requests/sec max (was 8/sec, lowered to avoid API bans).
  */
 class ApiClient
 {
     public function __construct(
         private string $baseUrl,
         private int $timeoutSec = 15,
-        private int $ratePerSec = 10
+        private int $ratePerSec = 2
     ) {}
+
+    /**
+     * Cache TTLs (seconds). Set to 0 to disable caching for a specific endpoint.
+     */
+    private const CACHE_TTL = [
+        'info' => 60,
+        'fee' => 60,
+        'supply' => 60,
+        'balance' => 15,
+        'unspent' => 15,
+        'history' => 15,
+        'transaction' => 30,
+    ];
 
     public function get(string $path): array
     {
@@ -85,20 +110,74 @@ class ApiClient
     /** Helper: get required result field, throw on API error */
     public function getResult(string $path): array
     {
+        // Check cache first
+        $cacheKey = $this->cacheKey($path);
+        $ttl = $this->cacheTtl($path);
+        if ($cacheKey !== null && $ttl > 0) {
+            $cached = Redis::get($cacheKey);
+            if ($cached !== null && is_array($cached)) {
+                return $cached;
+            }
+        }
+
+        // Cache miss — fetch from API
         $r = $this->get($path);
         if (!empty($r['error'])) {
             throw new \RuntimeException("API error on $path: " . json_encode($r['error']));
         }
-        return $r['result'] ?? [];
+        $result = $r['result'] ?? [];
+
+        // Store in cache
+        if ($cacheKey !== null && $ttl > 0) {
+            Redis::set($cacheKey, $result, $ttl);
+        }
+        return $result;
+    }
+
+    /**
+     * Force refresh cache for a path (bypass cache on next read).
+     */
+    public function invalidateCache(string $path): void
+    {
+        $cacheKey = $this->cacheKey($path);
+        if ($cacheKey !== null) {
+            Redis::del($cacheKey);
+        }
+    }
+
+    /**
+     * Build cache key from path. Returns null if endpoint should not be cached.
+     */
+    private function cacheKey(string $path): ?string
+    {
+        // Match path patterns
+        if (preg_match('#^/info$#', $path)) return 'api:' . md5($this->baseUrl) . ':info';
+        if (preg_match('#^/fee$#', $path)) return 'api:' . md5($this->baseUrl) . ':fee';
+        if (preg_match('#^/supply$#', $path)) return 'api:' . md5($this->baseUrl) . ':supply';
+        if (preg_match('#^/balance/(.+)$#', $path, $m)) return 'api:' . md5($this->baseUrl) . ':balance:' . $m[1];
+        if (preg_match('#^/unspent/(.+)$#', $path, $m)) return 'api:' . md5($this->baseUrl) . ':unspent:' . $m[1];
+        if (preg_match('#^/history/(.+)$#', $path, $m)) return 'api:' . md5($this->baseUrl) . ':history:' . $m[1];
+        if (preg_match('#^/transaction/(.+)$#', $path, $m)) return 'api:' . md5($this->baseUrl) . ':tx:' . $m[1];
+        return null;  // /decode, /broadcast, /height, /block — no cache
+    }
+
+    private function cacheTtl(string $path): int
+    {
+        if (preg_match('#^/info$#', $path)) return self::CACHE_TTL['info'];
+        if (preg_match('#^/fee$#', $path)) return self::CACHE_TTL['fee'];
+        if (preg_match('#^/supply$#', $path)) return self::CACHE_TTL['supply'];
+        if (preg_match('#^/balance/#', $path)) return self::CACHE_TTL['balance'];
+        if (preg_match('#^/unspent/#', $path)) return self::CACHE_TTL['unspent'];
+        if (preg_match('#^/history/#', $path)) return self::CACHE_TTL['history'];
+        if (preg_match('#^/transaction/#', $path)) return self::CACHE_TTL['transaction'];
+        return 0;
     }
 
     public function getInfo(): array { return $this->getResult('/info'); }
 
     public function getBalance(string $address): array
     {
-        // Trim to remove any whitespace/CRLF that might be in DB-stored addresses
         $address = trim($address);
-        // Don't urlencode - base58 chars are URL-safe, encoding can confuse some servers
         return $this->getResult('/balance/' . $address);
     }
 
@@ -125,12 +204,18 @@ class ApiClient
     public function decodeRaw(string $hex): array
     {
         $hex = trim($hex);
-        // Hex string - safe to use directly
-        return $this->getResult('/decode/' . $hex);
+        // No cache — debug endpoint
+        $r = $this->get('/decode/' . $hex);
+        if (!empty($r['error'])) {
+            throw new \RuntimeException("API error on /decode: " . json_encode($r['error']));
+        }
+        return $r['result'] ?? [];
     }
 
     public function broadcast(string $hex): string
     {
+        // No cache — write operation.
+        // After broadcast, invalidate cache for related addresses.
         $r = $this->post('/broadcast', ['raw' => $hex]);
         if (!empty($r['error'])) {
             throw new \RuntimeException("Broadcast failed: " . json_encode($r['error']));

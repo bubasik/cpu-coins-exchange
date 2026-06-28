@@ -18,7 +18,8 @@ use App\Service\WithdrawalDispenser;
 require __DIR__ . '/../vendor/autoload.php';
 Config::load();
 
-$intervalSec = 30;
+// Configurable interval (default 60s to avoid API bans)
+$intervalSec = (int)Config::get('DISPENSER_CHECK_INTERVAL', '60');
 $dispenser = new WithdrawalDispenser();
 
 echo "[" . date('c') . "] WithdrawalDispenser started (interval={$intervalSec}s)\n";

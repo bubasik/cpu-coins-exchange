@@ -16,7 +16,7 @@ final class AdventurecoinApi
         if (self::$client === null) {
             $url = trim(Config::get('ADVC_API', 'https://api2.adventurecoin.quest'));
             $url = rtrim($url, '/');
-            self::$client = new ApiClient($url, 15, 8);
+            self::$client = new ApiClient($url, 15, 2);
         }
         return self::$client;
     }

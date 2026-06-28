@@ -15,10 +15,11 @@ use App\Service\MatchingEngine;
 require __DIR__ . '/../vendor/autoload.php';
 Config::load();
 
-$intervalMicrosec = 1_000_000; // 1 sec
+// Configurable interval (default 2s — matching is local DB, no API calls)
+$intervalMicrosec = (int)(Config::get('MATCHER_INTERVAL_MS', '2000')) * 1000;
 $engine = new MatchingEngine();
 
-echo "[" . date('c') . "] MatchingEngine started (1s tick)\n";
+echo "[" . date('c') . "] MatchingEngine started (interval=" . ($intervalMicrosec/1000) . "ms)\n";
 
 while (true) {
     $start = microtime(true);

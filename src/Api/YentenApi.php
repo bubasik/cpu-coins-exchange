@@ -17,7 +17,7 @@ final class YentenApi
             // Trim+trim to remove any whitespace/CRLF (esp. when .env has Windows line endings)
             $url = trim(Config::get('YTN_API', 'https://api.yentencoin.info'));
             $url = rtrim($url, '/');
-            self::$client = new ApiClient($url, 15, 8);
+            self::$client = new ApiClient($url, 15, 2);
         }
         return self::$client;
     }

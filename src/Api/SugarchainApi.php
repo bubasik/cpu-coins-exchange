@@ -16,7 +16,7 @@ final class SugarchainApi
         if (self::$client === null) {
             $url = trim(Config::get('SUGAR_API', 'https://api.sugarchain.org'));
             $url = rtrim($url, '/');
-            self::$client = new ApiClient($url, 15, 8);
+            self::$client = new ApiClient($url, 15, 2);
         }
         return self::$client;
     }
