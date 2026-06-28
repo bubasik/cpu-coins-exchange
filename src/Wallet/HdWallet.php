@@ -132,9 +132,9 @@ final class HdWallet
         $inputTxOuts = []; // Track corresponding prev outputs for signing
         foreach ($selected as $u) {
             $txid = $u['txid'];
-            // txid from explorer is big-endian (display format).
-            // OutPoint expects little-endian internal hash. Use Buffer::flip().
-            $hashBuf = Buffer::hex($txid)->flip();
+            // txid from API is already in correct byte order (matches what /decode shows).
+            // Do NOT flip — flipping causes "Missing inputs" error on broadcast.
+            $hashBuf = Buffer::hex($txid);
             $outPoint = new OutPoint($hashBuf, (int)$u['index']);
             // spendOutPoint: pass null scriptSig (will be set during signing)
             $txBuilder->spendOutPoint($outPoint);

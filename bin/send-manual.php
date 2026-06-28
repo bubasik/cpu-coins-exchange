@@ -122,11 +122,13 @@ foreach ($utxos as $u) {
 $amountSat = (int)bcmul($amount, '100000000', 0);
 echo "\n3. Amount: $amountSat sats ($amount $sym)\n";
 
-// 4. Get fee rate
+// 4. Get fee rate (capped to avoid "absurdly-high-fee" rejection)
 try {
     $fee = $adapterClass::client()->getFee();
-    $feeRate = max(1, (int)($fee['feerate'] ?? 1));  // Use at least 1 sat/vB
-    echo "   Fee rate: $feeRate sat/vB (from API)\n";
+    $rawRate = (int)($fee['feerate'] ?? 10);
+    // Cap at 100 sat/vB — some APIs return absurd values (1M+)
+    $feeRate = max(1, min($rawRate, 100));
+    echo "   Fee rate: $feeRate sat/vB (API returned $rawRate, capped at 100)\n";
 } catch (\Throwable $e) {
     $feeRate = 10;
     echo "   Fee rate: $feeRate sat/vB (default, API fetch failed)\n";
@@ -158,8 +160,10 @@ if ($changeAmount < 546) {
     exit(1);
 }
 
-foreach ([true, false] as $useFlip) {
-    $label = $useFlip ? "WITH flip (big-endian → little-endian)" : "WITHOUT flip (use txid as-is)";
+// Try WITHOUT flip first (correct for sugarchain-project/api-server)
+// Fall back to WITH flip if that fails
+foreach ([false, true] as $useFlip) {
+    $label = $useFlip ? "WITH flip (fallback)" : "WITHOUT flip (standard)";
     echo "5. Building tx $label\n";
 
     try {

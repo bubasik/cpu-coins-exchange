@@ -160,9 +160,13 @@ final class WithdrawalDispenser
     {
         try {
             $fee = $adapter->api()->getFee();
-            return (int)($fee['feerate'] ?? 1000);
+            $rate = (int)($fee['feerate'] ?? 1000);
+            // Cap fee rate — some APIs return absurdly high values (e.g. 1M sat/vB)
+            // which would result in "absurdly-high-fee" rejection.
+            // Max 100 sat/vB = 0.000001 coin/vB (reasonable for these low-traffic coins)
+            return min($rate, 100);
         } catch (\Throwable $e) {
-            return 1000; // default 1 sat/vbyte
+            return 10; // default 10 sat/vbyte
         }
     }
 }
