@@ -1,0 +1,8 @@
+/vendor/
+/.env
+/storage/exchange.sqlite
+/storage/exchange.sqlite-*
+/storage/logs/*.log
+/storage/cache/*
+!storage/cache/.gitkeep
+/storage/backups/

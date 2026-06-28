@@ -1,0 +1,36 @@
+; Supervisor config for Yenten-Sugar Exchange workers
+; Place in /etc/supervisor/conf.d/yenten-sugar.conf
+; Then: supervisorctl reread && supervisorctl update
+
+[program:ys-deposit]
+command=php /opt/yenten-sugar/bin/worker-deposit.php
+directory=/opt/yenten-sugar
+user=www-data
+numprocs=1
+autostart=true
+autorestart=true
+startretries=3
+stderr_logfile=/opt/yenten-sugar/storage/logs/worker-deposit.err.log
+stdout_logfile=/opt/yenten-sugar/storage/logs/worker-deposit.out.log
+
+[program:ys-dispenser]
+command=php /opt/yenten-sugar/bin/worker-dispenser.php
+directory=/opt/yenten-sugar
+user=www-data
+numprocs=1
+autostart=true
+autorestart=true
+startretries=3
+stderr_logfile=/opt/yenten-sugar/storage/logs/worker-dispenser.err.log
+stdout_logfile=/opt/yenten-sugar/storage/logs/worker-dispenser.out.log
+
+[program:ys-matcher]
+command=php /opt/yenten-sugar/bin/worker-matcher.php
+directory=/opt/yenten-sugar
+user=www-data
+numprocs=1
+autostart=true
+autorestart=true
+startretries=3
+stderr_logfile=/opt/yenten-sugar/storage/logs/worker-matcher.err.log
+stdout_logfile=/opt/yenten-sugar/storage/logs/worker-matcher.out.log

@@ -1,0 +1,159 @@
+# Docker Compose for Yenten-Sugar Exchange (PHP only)
+#
+# Starts:
+#   PHP backend on http://localhost:8080 (autonomous, full UI)
+#   Redis on port 6379
+#   3 PHP worker containers (deposit watcher, dispenser, matcher)
+#
+# Usage:
+#   docker compose up -d        # build + start everything
+#   docker compose logs -f php  # follow PHP logs
+#   docker compose down         # stop
+#
+# First start: `composer install` runs automatically inside the php container
+# (takes ~30s on first run, instant on subsequent runs because vendor/ is
+# bind-mounted to your host ./vendor directory).
+
+services:
+  # ===== PHP backend (web + API) =====
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ys-php
+    working_dir: /app
+    volumes:
+      # Bind-mount the whole project so code changes are reflected immediately.
+      # The vendor/ directory is created inside this mount (NOT a separate
+      # named volume), so it persists across container restarts.
+      - ./:/app
+    ports:
+      - "8080:8080"
+    command:
+      - sh
+      - -c
+      - |
+        # Install PHP dependencies if not already installed
+        if [ ! -f vendor/autoload.php ]; then
+          echo "[startup] Installing PHP dependencies (composer install)..."
+          composer install --no-interaction --optimize-autoloader --ignore-platform-reqs
+        fi
+
+        # Run DB migrations (idempotent)
+        echo "[startup] Running migrations..."
+        php bin/migrate.php
+
+        # Verify everything is in place
+        if [ ! -f vendor/autoload.php ]; then
+          echo "[startup] ERROR: vendor/autoload.php still missing after composer install"
+          exit 1
+        fi
+
+        echo "[startup] Starting PHP server on :8080"
+        exec php -S 0.0.0.0:8080 -t public/
+    environment:
+      APP_DEBUG: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_PATH: storage/exchange.sqlite
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # ===== Redis (sessions, order book, rate limits) =====
+  redis:
+    image: redis:7-alpine
+    container_name: ys-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    restart: unless-stopped
+
+  # ===== Background worker: deposit watcher =====
+  worker-deposit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ys-worker-deposit
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f vendor/autoload.php ]; then
+          echo "[startup] Installing PHP dependencies..."
+          composer install --no-interaction --optimize-autoloader --ignore-platform-reqs
+        fi
+        echo "[startup] Starting deposit watcher"
+        exec php bin/worker-deposit.php
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_PATH: storage/exchange.sqlite
+    depends_on:
+      - php
+      - redis
+    restart: unless-stopped
+
+  # ===== Background worker: withdrawal dispenser (loads xprv) =====
+  worker-dispenser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ys-worker-dispenser
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f vendor/autoload.php ]; then
+          echo "[startup] Installing PHP dependencies..."
+          composer install --no-interaction --optimize-autoloader --ignore-platform-reqs
+        fi
+        echo "[startup] Starting withdrawal dispenser"
+        exec php bin/worker-dispenser.php
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_PATH: storage/exchange.sqlite
+    depends_on:
+      - php
+      - redis
+    restart: unless-stopped
+
+  # ===== Background worker: matching engine =====
+  worker-matcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ys-worker-matcher
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f vendor/autoload.php ]; then
+          echo "[startup] Installing PHP dependencies..."
+          composer install --no-interaction --optimize-autoloader --ignore-platform-reqs
+        fi
+        echo "[startup] Starting matching engine"
+        exec php bin/worker-matcher.php
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_PATH: storage/exchange.sqlite
+    depends_on:
+      - php
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis-data:

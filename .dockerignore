@@ -1,0 +1,16 @@
+# Don't include these in the Docker build context (faster builds)
+.git
+.gitignore
+*.md
+!README.md
+!PLAN.md
+.env
+.env.local
+storage/exchange.sqlite*
+storage/logs/*.log
+storage/cache/data/*
+storage/backups/
+
+# Note: vendor/ is NOT excluded — if you already have it on your host, it gets
+# bind-mounted into the container. If you don't, the startup script runs
+# `composer install` to create it inside the container.
