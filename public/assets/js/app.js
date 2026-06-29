@@ -68,9 +68,40 @@
     }
 
     function copyText(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            toast(window.i18n.t('common.copied'), 'success', 2000);
-        });
+        if (!text) return;
+        // Try modern Clipboard API (requires HTTPS or localhost)
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                toast(window.i18n.t('common.copied'), 'success', 2000);
+            }).catch(() => {
+                fallbackCopy(text);
+            });
+        } else {
+            // Fallback for HTTP (non-secure context): use execCommand
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            const ok = document.execCommand('copy');
+            if (ok) {
+                toast(window.i18n.t('common.copied'), 'success', 2000);
+            } else {
+                toast('Copy failed — select manually', 'error', 3000);
+            }
+        } catch (e) {
+            toast('Copy failed: ' + e.message, 'error', 3000);
+        }
+        document.body.removeChild(ta);
     }
 
     function satToCoin(sat, decimals = 8) {

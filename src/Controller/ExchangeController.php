@@ -40,6 +40,13 @@ final class ExchangeController
         if (!$order) {
             Response::json(['error' => 'Order not found'], 404);
         }
+
+        // Normalize: convert sat amounts to display strings for frontend
+        $order['from_amount'] = \App\Wallet\HdWallet::satToCoin((int)$order['from_amount_sat']);
+        $order['to_amount'] = \App\Wallet\HdWallet::satToCoin((int)$order['to_amount_sat']);
+        $order['from_coin'] = $order['from_coin'];
+        $order['to_coin'] = $order['to_coin'];
+
         Response::json(['order' => $order]);
     }
 

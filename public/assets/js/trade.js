@@ -17,7 +17,8 @@
                 currentPair = pairSelect.value;
                 const labelEl = document.getElementById('current-pair-label');
                 if (labelEl) labelEl.textContent = currentPair;
-                refreshAll();
+                updateForm();      // ← update labels/suffixes for new pair
+                refreshAll();      // ← refresh orderbook, trades, chart, my-orders
             });
         }
 
@@ -43,22 +44,42 @@
             const priceGroup = document.getElementById('price-group');
             const totalGroup = document.getElementById('total-group');
             const amountLabel = document.getElementById('amount-label');
+            const amountSuffix = document.querySelector('#order-amount').closest('.input-group')?.querySelector('.input-suffix');
+            const totalSuffix = document.querySelector('#order-total')?.closest('.input-group')?.querySelector('.input-suffix');
+            const priceSuffix = document.querySelector('#order-price')?.closest('.input-group')?.querySelector('.input-suffix');
             const submitBtn = document.getElementById('submit-order');
+
+            // Parse pair: "YTN/SUGAR" → base=YTN, quote=SUGAR
+            const [base, quote] = currentPair.split('/');
 
             if (currentType === 'market') {
                 if (priceGroup) priceGroup.classList.add('hidden');
                 if (totalGroup) totalGroup.classList.add('hidden');
-                if (amountLabel && currentSide === 'buy') amountLabel.textContent = window.i18n.t('trade.total') + ' (SUGAR)';
-                else if (amountLabel && currentSide === 'sell') amountLabel.textContent = window.i18n.t('trade.amount');
+                // Market BUY: pay quote, receive base → input is quote amount
+                // Market SELL: pay base, receive quote → input is base amount
+                if (amountLabel) {
+                    if (currentSide === 'buy') {
+                        amountLabel.textContent = window.i18n.t('trade.total') + ' (' + quote + ')';
+                    } else {
+                        amountLabel.textContent = window.i18n.t('trade.amount') + ' (' + base + ')';
+                    }
+                }
             } else {
                 if (priceGroup) priceGroup.classList.remove('hidden');
                 if (totalGroup) totalGroup.classList.remove('hidden');
-                if (amountLabel) amountLabel.textContent = window.i18n.t('trade.amount');
+                if (amountLabel) amountLabel.textContent = window.i18n.t('trade.amount') + ' (' + base + ')';
             }
 
+            // Update suffix labels (the small grey text inside input)
+            if (amountSuffix) amountSuffix.textContent = currentSide === 'buy' && currentType === 'market' ? quote : base;
+            if (totalSuffix) totalSuffix.textContent = quote;
+            if (priceSuffix) priceSuffix.textContent = quote;
+
+            // Update submit button
             if (submitBtn) {
                 submitBtn.className = 'btn btn-block ' + (currentSide === 'buy' ? 'btn-buy' : 'btn-sell');
-                submitBtn.textContent = (currentSide === 'buy' ? window.i18n.t('trade.side.buy') : window.i18n.t('trade.side.sell')) + ' YTN';
+                const action = currentSide === 'buy' ? window.i18n.t('trade.side.buy') : window.i18n.t('trade.side.sell');
+                submitBtn.textContent = action + ' ' + base;
             }
         }
 
@@ -235,6 +256,8 @@
             refreshMyOrders();
         }
 
+        // Initialize form labels for current pair on page load
+        updateForm();
         refreshAll();
         setInterval(refreshOrderBook, 2000);
         setInterval(refreshTrades, 5000);

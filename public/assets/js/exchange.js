@@ -78,10 +78,20 @@
             if (!resultPanel) return;
             resultPanel.classList.remove('hidden');
 
+            // Show order reference (SW code)
+            const refEl = document.getElementById('result-ref');
+            if (refEl) refEl.textContent = order.ref || ('#' + order.id);
+
             // result-deposit-addr is an <input readonly>, use .value not .textContent
             const addrInput = document.getElementById('result-deposit-addr');
             if (addrInput) {
                 addrInput.value = order.deposit_address || '';
+            }
+
+            // Dynamic instruction text: "Send your {from_coin} to the address below:"
+            const instrEl = document.getElementById('result-deposit-instruction');
+            if (instrEl && order.from_coin) {
+                instrEl.textContent = window.i18n.t('exchange.created.deposit', { coin: order.from_coin });
             }
 
             // Other elements are <span>, use .textContent
@@ -89,15 +99,30 @@
                 const el = document.getElementById(id);
                 if (el) el.textContent = val ?? '';
             };
-            setText('result-from-coin', order.from_coin);
+
+            // Amount to send (prominent block)
+            setText('result-send-amount', order.from_amount);
+            setText('result-send-coin', order.from_coin);
+
+            // Other details
             setText('result-to-coin', order.to_coin);
-            setText('result-from-amount', order.from_amount);
             setText('result-to-amount', order.to_amount);
             setText('result-rate', order.rate);
             setText('result-status', order.status);
+            setText('result-confirmations', order.confirmations || 0);
 
             const statusEl = document.getElementById('result-status');
             if (statusEl) statusEl.className = 'pill ' + window.app.pillForStatus(order.status);
+
+            // Show expiry warning only for pending status without deposit
+            const expiryWarning = document.getElementById('result-expiry-warning');
+            if (expiryWarning) {
+                if (order.status === 'pending' && !order.deposit_txid) {
+                    expiryWarning.classList.remove('hidden');
+                } else {
+                    expiryWarning.classList.add('hidden');
+                }
+            }
 
             resultPanel.scrollIntoView({ behavior: 'smooth' });
 

@@ -155,5 +155,10 @@
   "status.exists": "存在",
   "status.writable": "書き込み可能",
   "status.status": "ステータス",
-  "trade.selectPair": "ペア"
+  "trade.selectPair": "ペア",
+  "exchange.findOrderHint": "ステータス確認用にこのコードを保存してください",
+  "exchange.find": "検索",
+  "exchange.amountToSend": "送金額",
+  "exchange.youReceive": "受取額",
+  "exchange.expiryWarning": "⚠ 4時間以内に送金がない場合、注文は自動的に削除されます。"
 }

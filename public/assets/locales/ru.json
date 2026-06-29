@@ -155,5 +155,10 @@
   "status.exists": "Существует",
   "status.writable": "Доступен для записи",
   "status.status": "Статус",
-  "trade.selectPair": "Пара"
+  "trade.selectPair": "Пара",
+  "exchange.findOrderHint": "Сохраните код для проверки статуса",
+  "exchange.find": "Найти",
+  "exchange.amountToSend": "Сумма для отправки",
+  "exchange.youReceive": "Вы получите",
+  "exchange.expiryWarning": "⚠ Заявка будет автоматически удалена, если адрес пополнения не будет оплачен в течение 4 часов."
 }

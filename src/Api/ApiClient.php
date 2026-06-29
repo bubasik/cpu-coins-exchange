@@ -215,7 +215,6 @@ class ApiClient
     public function broadcast(string $hex): string
     {
         // No cache — write operation.
-        // After broadcast, invalidate cache for related addresses.
         $r = $this->post('/broadcast', ['raw' => $hex]);
         if (!empty($r['error'])) {
             throw new \RuntimeException("Broadcast failed: " . json_encode($r['error']));
@@ -225,6 +224,32 @@ class ApiClient
             throw new \RuntimeException("Broadcast: unexpected response: " . json_encode($r));
         }
         return $txid;
+    }
+
+    /**
+     * Invalidate cache for a specific address (balance, unspent, history).
+     * Call this after broadcast to ensure fresh UTXO data on next read.
+     */
+    public function invalidateAddressCache(string $address): void
+    {
+        $address = trim($address);
+        $prefix = 'api:' . md5($this->baseUrl) . ':';
+        Redis::del($prefix . 'balance:' . $address);
+        Redis::del($prefix . 'unspent:' . $address);
+        Redis::del($prefix . 'history:' . $address);
+    }
+
+    /**
+     * Invalidate all cached data for this API (use after large state changes).
+     */
+    public function invalidateAllCache(): void
+    {
+        $prefix = 'api:' . md5($this->baseUrl) . ':';
+        // Redis::del doesn't support pattern matching, so we delete known keys
+        // In production with Redis you'd use SCAN + DEL, but for simplicity:
+        Redis::del($prefix . 'info');
+        Redis::del($prefix . 'fee');
+        Redis::del($prefix . 'supply');
     }
 
     public function getCurrentHeight(): int

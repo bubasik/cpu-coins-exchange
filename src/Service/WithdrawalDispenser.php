@@ -63,6 +63,10 @@ final class WithdrawalDispenser
                 $txid = $adapter->broadcast($hex);
                 echo "[swap #{$swap['id']}] Broadcast OK, txid=$txid\n";
 
+                // Invalidate cache so next dispenser tick sees fresh UTXOs
+                $adapter->api()->invalidateAddressCache($adapter->hotWalletAddress());
+                $adapter->api()->invalidateAddressCache($swap['payout_address']);
+
                 $pdo->prepare('
                     UPDATE swap_orders
                     SET status = "sent", payout_txid = ?, payout_fee_rate = ?, sent_at = ?
@@ -79,19 +83,37 @@ final class WithdrawalDispenser
 
         // Check sent swaps for confirmation (mark completed)
         $stmt = $pdo->query('SELECT * FROM swap_orders WHERE status = "sent" AND payout_txid IS NOT NULL');
-        foreach ($stmt->fetchAll() as $swap) {
+        $sentSwaps = $stmt->fetchAll();
+        if (count($sentSwaps) > 0) {
+            echo "[" . date('c') . "] Dispenser: checking " . count($sentSwaps) . " sent swap(s) for confirmations\n";
+        }
+        foreach ($sentSwaps as $swap) {
+            $swapId = $swap['id'];
             try {
                 $adapter = AdapterRegistry::get($swap['to_coin']);
-                $tx = $adapter->api()->getTransaction($swap['payout_txid']);
+                $txid = $swap['payout_txid'];
+                echo "  [swap #$swapId] checking payout tx $txid ({$swap['to_coin']})\n";
+
+                $tx = $adapter->api()->getTransaction($txid);
                 $txHeight = (int)($tx['height'] ?? 0);
                 $conf = $adapter->getConfirmations($txHeight);
-                if ($conf >= $adapter->confirmationsRequired()) {
+                $required = $adapter->confirmationsRequired();
+                echo "  [swap #$swapId] confirmations=$conf/$required\n";
+
+                // Update confirmations in DB
+                $pdo->prepare('UPDATE swap_orders SET confirmations = ? WHERE id = ?')
+                    ->execute([$conf, $swapId]);
+
+                if ($conf >= $required) {
                     $pdo->prepare('UPDATE swap_orders SET status = "completed", completed_at = ? WHERE id = ?')
-                        ->execute([time(), $swap['id']]);
+                        ->execute([time(), $swapId]);
+                    echo "  [swap #$swapId] ✅ status → completed\n";
                     $processed++;
+                } else {
+                    echo "  [swap #$swapId] ⏳ waiting for $required confirmations (have $conf)\n";
                 }
             } catch (\Throwable $e) {
-                // ignore: tx may not yet be visible in explorer
+                echo "  [swap #$swapId] ⚠️ cannot check tx yet: " . $e->getMessage() . "\n";
             }
         }
 

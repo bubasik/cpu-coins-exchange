@@ -155,5 +155,10 @@
   "status.exists": "Exists",
   "status.writable": "Writable",
   "status.status": "Status",
-  "trade.selectPair": "Pair"
+  "trade.selectPair": "Pair",
+  "exchange.findOrderHint": "Save this code to check status later",
+  "exchange.find": "Find",
+  "exchange.amountToSend": "Amount to Send",
+  "exchange.youReceive": "You Receive",
+  "exchange.expiryWarning": "⚠ The order will be automatically deleted if the deposit address is not funded within 4 hours."
 }

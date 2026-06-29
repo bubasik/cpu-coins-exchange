@@ -50,7 +50,7 @@
   "exchange.status.completed": "已完成",
   "exchange.status.failed": "失败",
   "exchange.findOrder": "查找订单",
-  "exchange.orderRef": "订单号",
+  "exchange.orderRef": "订单编号",
   "exchange.recentSwaps": "最近兑换",
   "trade.title": "交易",
   "trade.pair": "YTN / SUGAR",
@@ -155,5 +155,10 @@
   "status.exists": "存在",
   "status.writable": "可写",
   "status.status": "状态",
-  "trade.selectPair": "交易对"
+  "trade.selectPair": "交易对",
+  "exchange.findOrderHint": "保存此代码以便稍后查询状态",
+  "exchange.find": "查找",
+  "exchange.amountToSend": "发送数量",
+  "exchange.youReceive": "您将收到",
+  "exchange.expiryWarning": "⚠ 如果 4 小时内未向充值地址付款，订单将被自动删除。"
 }

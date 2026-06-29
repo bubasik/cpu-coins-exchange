@@ -49,6 +49,10 @@ $recent = $data['recentSwaps'] ?? [];
             </div>
 
             <button class="btn btn-primary btn-block" id="submit-exchange" data-i18n="exchange.create">Create Swap Order</button>
+
+            <div class="mt-3" style="padding: 10px 14px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; font-size: 12px; color: var(--warning);">
+                <span data-i18n="exchange.expiryWarning">⚠ The order will be automatically deleted if the deposit address is not funded within 4 hours.</span>
+            </div>
         </div>
 
         <div>
@@ -56,7 +60,7 @@ $recent = $data['recentSwaps'] ?? [];
                 <label class="form-label" data-i18n="exchange.findOrder">Find Order</label>
                 <form id="find-order-form" class="input-group">
                     <input type="text" class="form-input" id="find-ref" placeholder="SW...">
-                    <button type="submit" class="btn btn-secondary" data-i18n="common.save">Find</button>
+                    <button type="submit" class="btn btn-secondary" data-i18n="exchange.find">Find</button>
                 </form>
             </div>
 
@@ -89,16 +93,38 @@ $recent = $data['recentSwaps'] ?? [];
 
 <div class="card hidden" id="order-result">
     <h3 data-i18n="exchange.created.title">Order Created</h3>
+
+    <!-- Order reference (SW code) -->
+    <div class="mb-3" style="padding: 12px; background: var(--bg-elev-2); border-radius: 6px;">
+        <p class="text-muted" style="font-size: 12px; margin-bottom: 4px;" data-i18n="exchange.orderRef">Order Reference</p>
+        <p class="mono" style="font-size: 18px; font-weight: 700; color: var(--primary);">
+            <span id="result-ref">-</span>
+        </p>
+        <p class="text-muted" style="font-size: 11px; margin-top: 4px;">
+            <span data-i18n="exchange.findOrderHint">Save this code to check status later</span>
+        </p>
+    </div>
+
     <div class="mt-2">
-        <p><span data-i18n="exchange.created.deposit" data-i18n-params='{"coin":"YTN"}'>Send your coins to:</span></p>
+        <p id="result-deposit-instruction">Send your coins to:</p>
         <div class="input-group mt-2 mb-2">
             <input type="text" class="form-input mono" id="result-deposit-addr" readonly>
             <button type="button" class="btn btn-secondary copy-btn" id="copy-deposit-addr" data-i18n="common.copy">Copy</button>
         </div>
+
+        <!-- Amount to send (prominent) -->
+        <div class="mb-3" style="padding: 12px; background: var(--bg-elev-2); border-radius: 6px; border-left: 3px solid var(--primary);">
+            <p class="text-muted" style="font-size: 12px; margin-bottom: 4px;" data-i18n="exchange.amountToSend">Amount to Send</p>
+            <p class="mono" style="font-size: 20px; font-weight: 700;">
+                <span id="result-send-amount">-</span>
+                <span id="result-send-coin" style="color: var(--primary);"></span>
+            </p>
+        </div>
+
         <div class="grid grid-2 mt-3">
             <div>
-                <p class="text-muted" data-i18n="common.amount">Amount</p>
-                <p class="mono"><span id="result-from-amount"></span> <span id="result-from-coin"></span> → <span id="result-to-amount"></span> <span id="result-to-coin"></span></p>
+                <p class="text-muted" data-i18n="exchange.youReceive">You Receive</p>
+                <p class="mono"><span id="result-to-amount"></span> <span id="result-to-coin"></span></p>
             </div>
             <div>
                 <p class="text-muted" data-i18n="exchange.rate">Rate</p>
@@ -119,6 +145,11 @@ $recent = $data['recentSwaps'] ?? [];
                 <p class="mono" id="result-deposit-tx">-</p>
                 <p class="mono text-muted" id="result-payout-tx">-</p>
             </div>
+        </div>
+
+        <!-- Expiry warning (only for pending status) -->
+        <div id="result-expiry-warning" class="mt-3" style="padding: 10px 14px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; font-size: 12px; color: var(--warning);">
+            <span data-i18n="exchange.expiryWarning">⚠ The order will be automatically deleted if the deposit address is not funded within 4 hours.</span>
         </div>
     </div>
 </div>
