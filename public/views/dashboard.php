@@ -45,7 +45,7 @@ $userTrades = $data['userTrades'] ?? [];
                     <p class="text-muted"><?= $coin ?></p>
                     <div class="input-group">
                         <input type="text" class="form-input mono" value="<?= htmlspecialchars($depositAddresses[$coin] ?? '') ?>" readonly>
-                        <button type="button" class="copy-btn" data-address="<?= htmlspecialchars($depositAddresses[$coin] ?? '') ?>" data-i18n="common.copy">Copy</button>
+                        <button type="button" class="copy-btn copy-deposit" data-address="<?= htmlspecialchars($depositAddresses[$coin] ?? '') ?>" data-i18n="common.copy">Copy</button>
                     </div>
                 </div>
             <?php endforeach; ?>
